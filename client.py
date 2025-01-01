@@ -6,11 +6,11 @@ from random import randint
 class Client(DatagramProtocol):
     def __init__(self, host, port):
         if host == "localhost":
-            host ="127.0.0.1"
-        
+            host = "127.0.0.1"
+
         self.address = None
         self.id = host, port
-        self.server = "127.0.0.1", 9999
+        self.server = "127.0.0.1", 8888
         print("Working on id: ", self.id)
 
     def startProtocol(self):
@@ -27,10 +27,11 @@ class Client(DatagramProtocol):
             print(addr, ":", datagram)
 
     def send_message(self):
-            while True:
-                self.transport.write(input(":::").encode("utf-8"), self.address)
+        while True:
+            self.transport.write(input(":::").encode("utf-8"), self.address)
 
-if __name__== "__main__":
+
+if __name__ == "__main__":
     port = randint(1000, 5000)
     reactor.listenUDP(port, Client("localhost", port))
     reactor.run()

@@ -1,6 +1,7 @@
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet import reactor
 
+
 class Server(DatagramProtocol):
     def __init__(self):
         self.clients = set()
@@ -11,7 +12,6 @@ class Server(DatagramProtocol):
             addresses = "\n".join([str(x) for x in self.clients])
             self.transport.write(addresses.encode("utf-8"), addr)
             self.clients.add(addr)
-
 
 
 if __name__ == "__main__":
