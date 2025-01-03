@@ -11,13 +11,27 @@ class Server:
     def receive_message(self, conn, addr):
         while True:
             msg = conn.recv(1024).decode("utf-8")
+
             if not msg:
                 break
-            elif msg == "GET_CLIENTS":
-                addresses = "\n".join([str(x) for x in self.clients])
-                conn.send(addresses.encode("utf-8"))
+
             else:
-                print(f"Received from {addr}: {msg}")
+                msg = msg.split("-")
+
+                if msg[0] == "ADD":  # add a new online client address to self.clients
+                    online_client_address = msg[1]
+                    self.clients.add(online_client_address)
+
+                elif msg[0] == "REMOVE":  # remove address(msg[1]) from self.clients
+                    address = msg[1]
+                    self.clients.remove(address)
+
+                elif msg[0] == "GET_CLIENTS":
+                    addresses = "\n".join([str(x) for x in self.clients])
+                    conn.send(addresses.encode("utf-8"))
+
+                else:
+                    print(f"Received from {addr}: {msg}")
 
         conn.close()
 
@@ -40,7 +54,7 @@ class Server:
         while True:
             client_conn, addr = self.conn.accept()
             print(f"Connection established with {addr}")
-            self.clients.add(addr)
+            # self.clients.add(addr)
 
             threading.Thread(
                 target=self.receive_message, args=(client_conn, addr)
