@@ -2,6 +2,7 @@ import pygame as pg
 import threading
 import random
 import os
+import tkinter as tk
 
 
 class Player:
@@ -28,10 +29,10 @@ class Player:
         # initializing pygame
 
         pg.init()
-        move_sound = pg.mixer.Sound("./sounds/piece_move.wav")
-        winning_sound = pg.mixer.Sound("sounds/applause.wav")
+        # move_sound = pg.mixer.Sound("./sounds/piece_move.wav")
+        # winning_sound = pg.mixer.Sound("sounds/applause.wav")
         # pg.mixer.music.load("sounds/background.wav")
-        move_sound.set_volume(1)
+        # move_sound.set_volume(1)
         size = (900, 900)  # a tuple of size (width, height)
         screen = pg.display.set_mode(size)
         background_image = pg.image.load("img/two_players_back.png")
@@ -62,7 +63,7 @@ class Player:
         def dice_value():
             value_1 = random.randint(1, 6)
             value_2 = random.randint(1, 6)
-            pg.mixer.Sound.play(move_sound)
+            # pg.mixer.Sound.play(move_sound)
             dice1.my_dice = pg.image.load(you_dice[value_1 - 1])
             dice2.my_dice = pg.image.load(you_dice[value_2 - 1])
             write_in_file("{} {}".format(value_1, value_2), "txt/dice_saving.txt")
@@ -70,7 +71,7 @@ class Player:
         def cpu_dice_value():
             value_1 = random.randint(1, 6)
             value_2 = random.randint(1, 6)
-            pg.mixer.Sound.play(move_sound)
+            # pg.mixer.Sound.play(move_sound)
 
             dice1_cpu.my_dice = pg.image.load(cpu_dice_list[value_1 - 1])
             dice2_cpu.my_dice = pg.image.load(cpu_dice_list[value_2 - 1])
@@ -517,9 +518,9 @@ class Player:
 
         # to move piece
         def move(FROM, to):
-            pg.mixer.Sound.play(move_sound)
+            # pg.mixer.Sound.play(move_sound)
             # first poping from current stack
-            pg.mixer.Sound.play(move_sound)
+            # pg.mixer.Sound.play(move_sound)
             deleted_piece = FROM.remove_piece()
             temp_to_move = deleted_piece
 
@@ -543,7 +544,7 @@ class Player:
             current_piece = deleted_piece
             piece_color = current_piece.id
             # msg = f"Moving {piece_color} piece from: {FROM.location} to: {to.location}"
-            msg = f"MOVING:{piece_color}:{FROM.location}:{to.location}"
+            msg = f"MOVE:{piece_color}:{FROM.location}:{to.location}"
             send_message(self.peer2, msg)
             print(msg)
 
@@ -572,7 +573,7 @@ class Player:
         light_trigerred = False
         black_light_trigerred = False
         winner_declared = False
-        winner_sound = "off"
+        # winner_sound = "off"
 
         turn_rolling = True
 
@@ -608,23 +609,102 @@ class Player:
         turn_a = None
         turn_b = None
 
-        # this method just call the move2 method to move, but there is need to call the methods to win or to attack
-        def receive_message(conn):
-            """rooye hamin socket mitoonan chat konan, niazi be socket jadid nist, ba flag moshakhas kon: ("MOVE:...") for move and ("MESSAGE:...") for message**********************************************************************"""
+        class MessageApp:
+            def __init__(self, root, conn, player):
+                self.root = root
+                self.root.title("Chat Application")
+                self.root.geometry("400x500")
+                self.root.configure(bg="#f0f0f0")
+                self.player = player
 
-            while True:
-                msg = conn.recv(1024).decode("utf-8")
-                msg = msg.split(":")
-                if msg[1] == self.opponent_color:  # color of the opponent
-                    move2(int(msg[2]), int(msg[3]))
-                # return msg[2], msg[3]
+                # Create a title label
+                title_label = tk.Label(
+                    self.root,
+                    text="Chat Application",
+                    font=("Helvetica", 16),
+                    bg="#f0f0f0",
+                )
+                title_label.pack(pady=10)
+
+                # Create a frame for the output and input
+                self.frame = tk.Frame(self.root, bg="#ffffff")
+                self.frame.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+
+                # Text area for displaying messages
+                self.text_area = tk.Text(
+                    self.frame, wrap=tk.WORD, bg="#eaeaea", font=("Helvetica", 12)
+                )
+                self.text_area.pack(expand=True, fill=tk.BOTH)
+
+                # Entry box for user input
+                self.input_box = tk.Entry(
+                    self.frame, font=("Helvetica", 12), bg="#ffffff"
+                )
+                self.input_box.pack(fill=tk.X, padx=10, pady=10)
+                self.input_box.bind(
+                    "<Return>", lambda event: self.send_message_chat(conn)
+                )  # Bind Enter key to send message
+
+                # Start a thread to listen for incoming messages
+                threading.Thread(
+                    target=self.receive_message, args=(conn,), daemon=True
+                ).start()
+
+            def display_message(self, message):
+                self.text_area.insert(
+                    tk.END, message + "\n"
+                )  # Add message to text area
+
+            def send_message_chat(self, conn):
+                user_input = self.input_box.get()
+                if user_input:
+                    msg = f"CHAT:{user_input}"
+                    conn.send(msg.encode("utf-8"))  # Send message to the other peer
+                    self.display_message(
+                        f"You: {user_input}"
+                    )  # Display message in text area
+                    self.input_box.delete(0, tk.END)  # Clear input box
+
+            def receive_message(self, conn):
+                while True:
+                    try:
+                        msg = conn.recv(1024).decode("utf-8")
+                        if not msg:
+                            break
+                        else:
+                            msg = msg.split(":")
+                            if msg[0] == "MOVE":
+                                if msg[1] == self.player.opponent_color:
+                                    move2(int(msg[2]), int(msg[3]))
+                            elif msg[0] == "CHAT":
+                                self.display_message(f"Opponent: {msg[1]}")
+                    except:
+                        break
+
+        def start_client(conn):
+            root = tk.Tk()
+            app = MessageApp(root, conn, self)
+            root.mainloop()
+
+        # def receive_message(conn):
+        #     while True:
+        #         msg = conn.recv(1024).decode("utf-8")
+        #         if not msg:
+        #             break
+        #         else:
+        #             msg = msg.split(":")
+        #             if msg[0] == "MOVE":
+        #                 if msg[1] == self.opponent_color:
+        #                     move2(int(msg[2]), int(msg[3]))
+        #             elif msg[0] == "CHAT":
+        #                 print(f"CHAT: {msg[1]}")
 
         def send_message(conn, msg):
             conn.send(msg.encode("utf-8"))
 
         def move2(from_arg, to_arg):
-            pg.mixer.Sound.play(move_sound)
-            pg.mixer.Sound.play(move_sound)
+            # pg.mixer.Sound.play(move_sound)
+            # pg.mixer.Sound.play(move_sound)
 
             fromm = all_stack_dict[from_arg]
             to = all_stack_dict[to_arg]
@@ -651,8 +731,14 @@ class Player:
             else:
                 self.you_number_of_peice_to_move -= 1
 
+        # threading.Thread(
+        #     target=receive_message,
+        #     args=(self.peer2,),
+        #     daemon=True,
+        # ).start()
+
         threading.Thread(
-            target=receive_message,
+            target=start_client,
             args=(self.peer2,),
             daemon=True,
         ).start()
@@ -1478,18 +1564,18 @@ class Player:
                 pg.mixer.music.stop()
                 winner_declared = True
                 screen.blit(white_wins, (0, 0))
-                winner_sound = "on"
+                # winner_sound = "on"
 
             elif len(black_bearing_stack.elements) == 15:
                 pg.mixer.music.stop()
                 winner_declared = True
                 screen.blit(black_wins, (0, 0))
-                winner_sound = "on"
+                # winner_sound = "on"
 
             if winner_declared == True:
-                if winning_sound == "on":
-                    pg.mixer.Sound.play(winning_sound)
-                    winner_sound = "off"
+                # if winning_sound == "on":
+                    # pg.mixer.Sound.play(winning_sound)
+                    # winner_sound = "off"
 
                 if 250 <= mouse[0] <= 650 and 484 <= mouse[1] <= 550 and click[0] == 1:
                     pass
