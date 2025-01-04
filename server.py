@@ -1,5 +1,6 @@
 import socket
 import threading
+from cryptography.fernet import Fernet
 
 
 class Server:
@@ -8,14 +9,18 @@ class Server:
         self.conn = None
         self.clients = set()
 
+        # For cryptography
+        self.key = Fernet.generate_key()
+        self.cipher_suite = Fernet(self.key)
+
     def receive_message(self, conn, addr):
         while True:
-            msg = conn.recv(1024).decode("utf-8")
-
-            if not msg:
+            encrypted_msg = conn.recv(1024)
+            if not encrypted_msg:
                 break
 
-            else:
+            try:
+                msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8")
                 msg = msg.split("-")
 
                 if msg[0] == "ADD":  # add a new online client address to self.clients
@@ -28,10 +33,13 @@ class Server:
 
                 elif msg[0] == "GET_CLIENTS":
                     addresses = "\n".join([str(x) for x in self.clients])
-                    conn.send(addresses.encode("utf-8"))
+                    conn.send(self.cipher_suite.encrypt(addresses.encode("utf-8")))
 
                 else:
                     print(f"Received from {addr}: {msg}")
+
+            except Exception as e:
+                print(f"Error decrypting message: {e}")
 
         conn.close()
 
@@ -40,7 +48,8 @@ class Server:
             msg = input("Enter message (or 'exit' to quit): ")
             if msg.lower() == "exit":
                 break
-            conn.send(msg.encode("utf-8"))
+            encrypted_msg = self.cipher_suite.encrypt(msg.encode("utf-8"))
+            conn.send(encrypted_msg)
 
         conn.close()
 
@@ -55,6 +64,9 @@ class Server:
             client_conn, addr = self.conn.accept()
             print(f"Connection established with {addr}")
             # self.clients.add(addr)
+
+            # Send key to client
+            client_conn.send(self.key)
 
             threading.Thread(
                 target=self.receive_message, args=(client_conn, addr)

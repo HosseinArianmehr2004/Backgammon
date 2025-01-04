@@ -1,6 +1,7 @@
 import socket
 import threading
 from Backgammon_Game import Player
+from cryptography.fernet import Fernet
 
 
 class Client:
@@ -29,6 +30,9 @@ class Client:
             "7. Exit\n",
         ]
 
+        # For cryptography
+        self.cipher_suite = None
+
     def run_game(self, color):
         # Run the game in a separate thread
         player = Player(self.game_conn, self.game_peer_conn, color)
@@ -40,20 +44,29 @@ class Client:
 
     def receive_message(self, conn, addr):
         while True:
-            msg = conn.recv(1024).decode("utf-8")
-            if not msg:
+            encrypted_msg = conn.recv(1024)
+            if not encrypted_msg:
                 break
             else:
-                print(f"Received from {addr}:\n{msg}")
+                try:
+                    msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8")
+                    print(f"Received from {addr}:\n{msg}")
+                except Exception as e:
+                    print(f"Error decrypting message: {e}")
 
         conn.close()
 
     def send_message(self, conn, msg):
-        conn.send(msg.encode("utf-8"))
+        encrypted_msg = self.cipher_suite.encrypt(msg.encode("utf-8"))
+        conn.send(encrypted_msg)
 
     def start_client(self):
         self.server_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_conn.connect(self.server_address)
+
+        # Receive key from server
+        self.key = self.server_conn.recv(1024)
+        self.cipher_suite = Fernet(self.key)
 
         while True:
             for x in self.options:
@@ -95,7 +108,11 @@ class Client:
                 # Request the list of online clients from the server
                 self.send_message(self.server_conn, "GET_CLIENTS")
 
-                online_clients = self.server_conn.recv(1024).decode("utf-8")
+                # online_clients = self.server_conn.recv(1024).decode("utf-8")
+                online_clients = self.server_conn.recv(1024)
+                online_clients = self.cipher_suite.decrypt(online_clients).decode(
+                    "utf-8"
+                )
                 print("Online clients:")
                 print(online_clients)
 
@@ -138,7 +155,11 @@ class Client:
                 # Request the list of online clients from the server
                 self.send_message(self.server_conn, "GET_CLIENTS")
 
-                online_clients = self.server_conn.recv(1024).decode("utf-8")
+                # online_clients = self.server_conn.recv(1024).decode("utf-8")
+                online_clients = self.server_conn.recv(1024)
+                online_clients = self.cipher_suite.decrypt(online_clients).decode(
+                    "utf-8"
+                )
                 print("Online clients:")
                 print(online_clients)
 
