@@ -870,31 +870,55 @@ class Player:
                         pass
                         # time.sleep(2)
 
-                if (
-                    event.type == pg.MOUSEBUTTONUP
-                    and self.turn == "you"
-                    and 840 <= mouse[0] <= 885
-                    and 440 <= mouse[1] <= 560
-                ):
-                    if event.button == 1:
-                        light_white_keys(white_light_pieces)
-                        you_dice_rolled = True
-                        light_trigerred = True
+                if self.color == "white":
+                    if (
+                        event.type == pg.MOUSEBUTTONUP
+                        and self.turn == "you"
+                        and 840 <= mouse[0] <= 885
+                        and 440 <= mouse[1] <= 560
+                    ):
+                        if event.button == 1:
+                            light_white_keys(white_light_pieces)
+                            you_dice_rolled = True
+                            light_trigerred = True
 
-                if (
-                    event.type == pg.MOUSEBUTTONUP
-                    and self.turn == "cpu"
-                    and 3 <= mouse[0] <= 48
-                    and 420 <= mouse[1] <= 540
-                ):
-                    if event.button == 1:
-                        light_black_keys(black_light_pieces)
-                        cpu_dice_rolled = True
-                        black_light_trigerred = True
+                    # if (
+                    #     event.type == pg.MOUSEBUTTONUP
+                    #     and self.turn == "cpu"
+                    #     and 3 <= mouse[0] <= 48
+                    #     and 420 <= mouse[1] <= 540
+                    # ):
+                    #     if event.button == 1:
+                    #         light_black_keys(black_light_pieces)
+                    #         cpu_dice_rolled = True
+                    #         black_light_trigerred = True
+
+                if self.color == "black":
+                    # if (
+                    #     event.type == pg.MOUSEBUTTONUP
+                    #     and self.turn == "you"
+                    #     and 840 <= mouse[0] <= 885
+                    #     and 440 <= mouse[1] <= 560
+                    # ):
+                    #     if event.button == 1:
+                    #         light_white_keys(white_light_pieces)
+                    #         you_dice_rolled = True
+                    #         light_trigerred = True
+
+                    if (
+                        event.type == pg.MOUSEBUTTONUP
+                        and self.turn == "cpu"
+                        and 3 <= mouse[0] <= 48
+                        and 420 <= mouse[1] <= 540
+                    ):
+                        if event.button == 1:
+                            light_black_keys(black_light_pieces)
+                            cpu_dice_rolled = True
+                            black_light_trigerred = True
 
                 # step 5 (movement of player's pieces
                 # print(len(white_legal_destination))
-                if self.turn == "you":
+                if self.turn == "you":  # find
                     for i in white_light_pieces:
                         dice_player = get_from_file()
                         if (
@@ -1176,263 +1200,273 @@ class Player:
             screen.blit(white_piece14.image, white_piece14.co_ordinate)
             screen.blit(white_piece15.image, white_piece15.co_ordinate)
 
-            # for human player
-            if self.turn == "you":
-                # step 1 (self.turn on lights)
-                turn_on_the_turn_light(self.turn)
+            if self.color == "white":
+                # for human player
+                if self.turn == "you":
+                    # step 1 (self.turn on lights)
+                    turn_on_the_turn_light(self.turn)
 
-                # step 2 (dice rolling)
-                if you_dice_rolled == False:
-                    if 840 <= mouse[0] <= 885 and 440 <= mouse[1] <= 560:
-                        screen.blit(active_dice_button, (840, 440))
+                    # step 2 (dice rolling)
+                    if you_dice_rolled == False:
+                        if 840 <= mouse[0] <= 885 and 440 <= mouse[1] <= 560:
+                            screen.blit(active_dice_button, (840, 440))
 
-                        if click[0] == 1:
-                            self.you_turn_msg = False
-                            dice_value()
+                            if click[0] == 1:
+                                self.you_turn_msg = False
+                                dice_value()
+                        else:
+                            screen.blit(inactive_dice_button, (840, 440))
+
+                    # step 3 (lighting the pieces that are allowed to move)
+                    L = []
+
+                    if (
+                        len(my_middle_stack.elements) > 0
+                        and my_middle_stack.elements[-1].id == "white"
+                    ):
+                        for i in my_middle_stack.elements:
+                            if i.id == "white":
+                                L.append([my_middle_stack, i])
                     else:
-                        screen.blit(inactive_dice_button, (840, 440))
+                        for i in all_stack_list:
+                            if len(i.elements) > 0:
+                                light_piece = i.elements[-1]
+                                if light_piece.id == "white":
+                                    L.append([i, light_piece])
+                    white_light_pieces = L
 
-                # step 3 (lighting the pieces that are allowed to move)
-                L = []
+                    # step 4 (updating the allowed destinations and lighting them on click)
+                    if you_dice_rolled == True and len(white_light_pieces) > 0:
+                        temp_destination = []
+                        dice_player = get_from_file()
 
-                if (
-                    len(my_middle_stack.elements) > 0
-                    and my_middle_stack.elements[-1].id == "white"
-                ):
-                    for i in my_middle_stack.elements:
-                        if i.id == "white":
-                            L.append([my_middle_stack, i])
-                else:
-                    for i in all_stack_list:
-                        if len(i.elements) > 0:
-                            light_piece = i.elements[-1]
-                            if light_piece.id == "white":
-                                L.append([i, light_piece])
-                white_light_pieces = L
-
-                # step 4 (updating the allowed destinations and lighting them on click)
-                if you_dice_rolled == True and len(white_light_pieces) > 0:
-                    temp_destination = []
-                    dice_player = get_from_file()
-
-                    if len(white_reached_home) <= 15:
-                        for i in white_light_pieces:
-                            if (
-                                len(my_middle_stack.elements) > 0
-                                and my_middle_stack.elements[-1].id == "white"
-                            ):
-                                d1, d2 = 25 - (
-                                    -(i[0].location - dice_player[0])
-                                ), 25 - (-(i[0].location - dice_player[1]))
-                            else:
-                                d1, d2 = (
-                                    i[0].location - dice_player[0],
-                                    i[0].location - dice_player[1],
-                                )
-                            if d1 > 0 and player_dice1_moved == False:
+                        if len(white_reached_home) <= 15:
+                            for i in white_light_pieces:
                                 if (
-                                    all_stack_dict[d1].checking_receiving_light("white")
-                                    == "on"
+                                    len(my_middle_stack.elements) > 0
+                                    and my_middle_stack.elements[-1].id == "white"
                                 ):
-                                    temp_destination.append(all_stack_dict[d1])
-
-                            if d1 == 0 and player_dice1_moved == False:
-                                if (
-                                    white_bearing_stack.checking_receiving_light(
-                                        "white"
+                                    d1, d2 = 25 - (
+                                        -(i[0].location - dice_player[0])
+                                    ), 25 - (-(i[0].location - dice_player[1]))
+                                else:
+                                    d1, d2 = (
+                                        i[0].location - dice_player[0],
+                                        i[0].location - dice_player[1],
                                     )
-                                    == "on"
-                                ):
-                                    temp_destination.append(white_bearing_stack)
-
-                            if d2 > 0 and player_dice2_moved == False:
-                                if (
-                                    all_stack_dict[d2].checking_receiving_light("white")
-                                    == "on"
-                                ):
-                                    temp_destination.append(all_stack_dict[d2])
-
-                            if d2 == 0 and player_dice2_moved == False:
-                                if (
-                                    white_bearing_stack.checking_receiving_light(
-                                        "white"
-                                    )
-                                    == "on"
-                                ):
-                                    temp_destination.append(white_bearing_stack)
-
-                    white_legal_destination = temp_destination
-                    # print("white legal destinations : ", white_legal_destination)
-
-                    for i in white_light_pieces:
-
-                        if (
-                            click[0] == 1
-                            and i[1].co_ordinate[0]
-                            <= mouse[0]
-                            <= i[1].co_ordinate[0] + 56
-                            and i[1].co_ordinate[1]
-                            <= mouse[1]
-                            <= i[1].co_ordinate[1] + 56
-                        ):
-                            if (
-                                len(my_middle_stack.elements) > 0
-                                and my_middle_stack.elements[-1].id == "white"
-                            ):
-                                d1, d2 = 25 - (
-                                    -(i[0].location - dice_player[0])
-                                ), 25 - (-(i[0].location - dice_player[1]))
-                            else:
-                                d1, d2 = (
-                                    i[0].location - dice_player[0],
-                                    i[0].location - dice_player[1],
-                                )
-                            # print(d1, d2)
-                            if len(white_reached_home) <= 15:
                                 if d1 > 0 and player_dice1_moved == False:
-                                    all_stack_dict[d1].receiving_light("white")
-
-                                if d2 > 0 and player_dice2_moved == False:
-                                    all_stack_dict[d2].receiving_light("white")
+                                    if (
+                                        all_stack_dict[d1].checking_receiving_light(
+                                            "white"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(all_stack_dict[d1])
 
                                 if d1 == 0 and player_dice1_moved == False:
-                                    white_bearing_stack.receiving_light("white")
+                                    if (
+                                        white_bearing_stack.checking_receiving_light(
+                                            "white"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(white_bearing_stack)
+
+                                if d2 > 0 and player_dice2_moved == False:
+                                    if (
+                                        all_stack_dict[d2].checking_receiving_light(
+                                            "white"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(all_stack_dict[d2])
 
                                 if d2 == 0 and player_dice2_moved == False:
-                                    white_bearing_stack.receiving_light("white")
+                                    if (
+                                        white_bearing_stack.checking_receiving_light(
+                                            "white"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(white_bearing_stack)
 
-                # step 5 (movement of pieces)
-                # ye uper event waly part mein horaha he line # 567 mein
+                        white_legal_destination = temp_destination
+                        # print("white legal destinations : ", white_legal_destination)
 
-            # for cpu
-            if self.turn == "cpu":  # find
-                # step 1 (self.turn on the self.turn lights)
-                turn_on_the_turn_light(self.turn)
+                        for i in white_light_pieces:
 
-                # step 2 (dice rolling)
+                            if (
+                                click[0] == 1
+                                and i[1].co_ordinate[0]
+                                <= mouse[0]
+                                <= i[1].co_ordinate[0] + 56
+                                and i[1].co_ordinate[1]
+                                <= mouse[1]
+                                <= i[1].co_ordinate[1] + 56
+                            ):
+                                if (
+                                    len(my_middle_stack.elements) > 0
+                                    and my_middle_stack.elements[-1].id == "white"
+                                ):
+                                    d1, d2 = 25 - (
+                                        -(i[0].location - dice_player[0])
+                                    ), 25 - (-(i[0].location - dice_player[1]))
+                                else:
+                                    d1, d2 = (
+                                        i[0].location - dice_player[0],
+                                        i[0].location - dice_player[1],
+                                    )
+                                # print(d1, d2)
+                                if len(white_reached_home) <= 15:
+                                    if d1 > 0 and player_dice1_moved == False:
+                                        all_stack_dict[d1].receiving_light("white")
 
-                if cpu_dice_rolled == False:
-                    if 3 <= mouse[0] <= 48 and 420 <= mouse[1] <= 540:
-                        screen.blit(active_player2_dice, (3, 420))
+                                    if d2 > 0 and player_dice2_moved == False:
+                                        all_stack_dict[d2].receiving_light("white")
 
-                        if click[0] == 1:
-                            self.cpu_turn_msg = False
-                            cpu_dice_value()
+                                    if d1 == 0 and player_dice1_moved == False:
+                                        white_bearing_stack.receiving_light("white")
+
+                                    if d2 == 0 and player_dice2_moved == False:
+                                        white_bearing_stack.receiving_light("white")
+
+                    # step 5 (movement of pieces)
+                    # ye uper event waly part mein horaha he line # 567 mein
+
+            if self.color == "black":
+                # for cpu
+                if self.turn == "cpu":
+                    # step 1 (self.turn on the self.turn lights)
+                    turn_on_the_turn_light(self.turn)
+
+                    # step 2 (dice rolling)
+
+                    if cpu_dice_rolled == False:
+                        if 3 <= mouse[0] <= 48 and 420 <= mouse[1] <= 540:
+                            screen.blit(active_player2_dice, (3, 420))
+
+                            if click[0] == 1:
+                                self.cpu_turn_msg = False
+                                cpu_dice_value()
+                        else:
+                            screen.blit(inactive_player2_dice, (3, 420))
+
+                    L = []
+
+                    if (
+                        len(my_middle_stack.elements) > 0
+                        and my_middle_stack.elements[-1].id == "black"
+                    ):
+                        for i in my_middle_stack.elements:
+                            if i.id == "black":
+                                L.append([my_middle_stack, i])
                     else:
-                        screen.blit(inactive_player2_dice, (3, 420))
+                        for i in all_stack_list:
+                            if len(i.elements) > 0:
+                                light_piece = i.elements[-1]
+                                if light_piece.id == "black":
+                                    L.append([i, light_piece])
+                    black_light_pieces = L
 
-                L = []
+                    # step 4 (updating the allowed destinations and lighting them on click)
+                    if cpu_dice_rolled == True and len(black_light_pieces) > 0:
+                        temp_destination = []
+                        dice_cpu = get_from_file("txt/cpu_dice_saving.txt")
 
-                if (
-                    len(my_middle_stack.elements) > 0
-                    and my_middle_stack.elements[-1].id == "black"
-                ):
-                    for i in my_middle_stack.elements:
-                        if i.id == "black":
-                            L.append([my_middle_stack, i])
-                else:
-                    for i in all_stack_list:
-                        if len(i.elements) > 0:
-                            light_piece = i.elements[-1]
-                            if light_piece.id == "black":
-                                L.append([i, light_piece])
-                black_light_pieces = L
-
-                # step 4 (updating the allowed destinations and lighting them on click)
-                if cpu_dice_rolled == True and len(black_light_pieces) > 0:
-                    temp_destination = []
-                    dice_cpu = get_from_file("txt/cpu_dice_saving.txt")
-
-                    if len(black_reached_home) <= 15:
-                        for i in black_light_pieces:
-                            if (
-                                len(my_middle_stack.elements) > 0
-                                and my_middle_stack.elements[-1].id == "black"
-                            ):
-                                d1, d2 = -(i[0].location - dice_cpu[0]), -(
-                                    i[0].location - dice_cpu[1]
-                                )
-                            else:
-                                d1, d2 = (
-                                    i[0].location + dice_cpu[0],
-                                    i[0].location + dice_cpu[1],
-                                )
-
-                            if d1 < 25 and cpu_dice1_moved == False:
+                        if len(black_reached_home) <= 15:
+                            for i in black_light_pieces:
                                 if (
-                                    all_stack_dict[d1].checking_receiving_light("black")
-                                    == "on"
+                                    len(my_middle_stack.elements) > 0
+                                    and my_middle_stack.elements[-1].id == "black"
                                 ):
-                                    temp_destination.append(all_stack_dict[d1])
-
-                            if d1 == 25 and cpu_dice1_moved == False:
-                                if (
-                                    black_bearing_stack.checking_receiving_light(
-                                        "black"
+                                    d1, d2 = -(i[0].location - dice_cpu[0]), -(
+                                        i[0].location - dice_cpu[1]
                                     )
-                                    == "on"
-                                ):
-                                    temp_destination.append(black_bearing_stack)
-
-                            if d2 < 25 and cpu_dice2_moved == False:
-                                if (
-                                    all_stack_dict[d2].checking_receiving_light("black")
-                                    == "on"
-                                ):
-                                    temp_destination.append(all_stack_dict[d2])
-
-                            if d2 == 25 and cpu_dice2_moved == False:
-                                if (
-                                    black_bearing_stack.checking_receiving_light(
-                                        "black"
+                                else:
+                                    d1, d2 = (
+                                        i[0].location + dice_cpu[0],
+                                        i[0].location + dice_cpu[1],
                                     )
-                                    == "on"
-                                ):
-                                    temp_destination.append(black_bearing_stack)
 
-                    black_legal_destination = temp_destination
-                    # print(black_legal_destination)
-                    # print(len(black_legal_destination))
-
-                    for i in black_light_pieces:
-                        # print("my middle stack", len(my_middle_stack.elements))
-                        if (
-                            click[0] == 1
-                            and i[1].co_ordinate[0]
-                            <= mouse[0]
-                            <= i[1].co_ordinate[0] + 56
-                            and i[1].co_ordinate[1]
-                            <= mouse[1]
-                            <= i[1].co_ordinate[1] + 56
-                        ):
-                            if (
-                                len(my_middle_stack.elements) > 0
-                                and my_middle_stack.elements[-1].id == "black"
-                            ):
-                                d1, d2 = -(i[0].location - dice_cpu[0]), -(
-                                    i[0].location - dice_cpu[1]
-                                )
-                            else:
-                                d1, d2 = (
-                                    i[0].location + dice_cpu[0],
-                                    i[0].location + dice_cpu[1],
-                                )
-                            # print(d1, d2)
-                            if len(black_reached_home) <= 15:
                                 if d1 < 25 and cpu_dice1_moved == False:
-                                    all_stack_dict[d1].receiving_light("black")
-
-                                if d2 < 25 and cpu_dice2_moved == False:
-                                    all_stack_dict[d2].receiving_light("black")
+                                    if (
+                                        all_stack_dict[d1].checking_receiving_light(
+                                            "black"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(all_stack_dict[d1])
 
                                 if d1 == 25 and cpu_dice1_moved == False:
-                                    black_bearing_stack.receiving_light("black")
+                                    if (
+                                        black_bearing_stack.checking_receiving_light(
+                                            "black"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(black_bearing_stack)
+
+                                if d2 < 25 and cpu_dice2_moved == False:
+                                    if (
+                                        all_stack_dict[d2].checking_receiving_light(
+                                            "black"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(all_stack_dict[d2])
 
                                 if d2 == 25 and cpu_dice2_moved == False:
-                                    black_bearing_stack.receiving_light("black")
+                                    if (
+                                        black_bearing_stack.checking_receiving_light(
+                                            "black"
+                                        )
+                                        == "on"
+                                    ):
+                                        temp_destination.append(black_bearing_stack)
 
-                # step 5 (movement of pieces)
-                # ye uper event waly part mein horaha he line # 770 mein
+                        black_legal_destination = temp_destination
+                        # print(black_legal_destination)
+                        # print(len(black_legal_destination))
+
+                        for i in black_light_pieces:
+                            # print("my middle stack", len(my_middle_stack.elements))
+                            if (
+                                click[0] == 1
+                                and i[1].co_ordinate[0]
+                                <= mouse[0]
+                                <= i[1].co_ordinate[0] + 56
+                                and i[1].co_ordinate[1]
+                                <= mouse[1]
+                                <= i[1].co_ordinate[1] + 56
+                            ):
+                                if (
+                                    len(my_middle_stack.elements) > 0
+                                    and my_middle_stack.elements[-1].id == "black"
+                                ):
+                                    d1, d2 = -(i[0].location - dice_cpu[0]), -(
+                                        i[0].location - dice_cpu[1]
+                                    )
+                                else:
+                                    d1, d2 = (
+                                        i[0].location + dice_cpu[0],
+                                        i[0].location + dice_cpu[1],
+                                    )
+                                # print(d1, d2)
+                                if len(black_reached_home) <= 15:
+                                    if d1 < 25 and cpu_dice1_moved == False:
+                                        all_stack_dict[d1].receiving_light("black")
+
+                                    if d2 < 25 and cpu_dice2_moved == False:
+                                        all_stack_dict[d2].receiving_light("black")
+
+                                    if d1 == 25 and cpu_dice1_moved == False:
+                                        black_bearing_stack.receiving_light("black")
+
+                                    if d2 == 25 and cpu_dice2_moved == False:
+                                        black_bearing_stack.receiving_light("black")
+
+                    # step 5 (movement of pieces)
+                    # ye uper event waly part mein horaha he line # 770 mein
 
             screen.blit(dice1.my_dice, (2, 650))
             screen.blit(dice2.my_dice, (2, 720))
