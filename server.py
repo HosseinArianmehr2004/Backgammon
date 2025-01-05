@@ -1,3 +1,4 @@
+import random
 import socket
 import threading
 from cryptography.fernet import Fernet
@@ -35,6 +36,13 @@ class Server:
                     addresses = "\n".join([str(x) for x in self.clients])
                     conn.send(self.cipher_suite.encrypt(addresses.encode("utf-8")))
 
+                elif msg[0] == "DICE":
+                    value_1 = random.randint(1, 6)
+                    value_2 = random.randint(1, 6)
+                    msg = f"DICE:{value_1}:{value_2}"
+                    # print(msg)
+                    conn.send(msg.encode("utf-8"))
+
                 else:
                     print(f"Received from {addr}: {msg}")
 
@@ -63,7 +71,6 @@ class Server:
         while True:
             client_conn, addr = self.conn.accept()
             print(f"Connection established with {addr}")
-            # self.clients.add(addr)
 
             # Send key to client
             client_conn.send(self.key)
