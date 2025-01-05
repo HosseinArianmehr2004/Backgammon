@@ -3,26 +3,30 @@ import threading
 import random
 import os
 import tkinter as tk
-
+from cryptography.fernet import Fernet
 
 class Player:
-    def __init__(self, p1, p2, color):
+    def __init__(self, p1, p2, color, server):
         self.peer1 = p1
         self.peer2 = p2
+        self.server = server
 
         self.you_number_of_peice_to_move = 2
         self.cpu_number_of_peice_to_move = 2
 
+        self.turn = "you"
+
         self.color = color
         if color == "white":
-            self.turn = "you"
             self.opponent_color = "black"
         if color == "black":
-            self.turn = "cpu"
             self.opponent_color = "white"
 
         self.you_turn_msg = True
         self.cpu_turn_msg = False
+
+        # For cryptography
+        self.cipher_suite = None
 
     def main(self):
         os.environ["SDL_VIDEO_WINDOW_POS"] = "%d,%d" % (150, 30)
@@ -41,6 +45,10 @@ class Player:
         red = (225, 0, 0)
         yellow = (225, 225, 0)
         black = (0, 0, 0)
+
+        # Receive key from server
+        self.key = self.server_conn.recv(1024)
+        self.cipher_suite = Fernet(self.key)
 
         # for positioning of pieces the key
         def position(x, y):
@@ -61,16 +69,29 @@ class Player:
 
         # to roll and save the value of dice
         def dice_value():
-            value_1 = random.randint(1, 6)
-            value_2 = random.randint(1, 6)
+            encrypted_msg = self.server.recv(1024)
+            msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8").split(":")
+
+            # print(msg)
+
+            value_1 = int(msg[1])
+            value_2 = int(msg[2])
+            # value_1 = random.randint(1, 6)
+            # value_2 = random.randint(1, 6)
             # pg.mixer.Sound.play(move_sound)
             dice1.my_dice = pg.image.load(you_dice[value_1 - 1])
             dice2.my_dice = pg.image.load(you_dice[value_2 - 1])
             write_in_file("{} {}".format(value_1, value_2), "txt/dice_saving.txt")
 
-        def cpu_dice_value():
-            value_1 = random.randint(1, 6)
-            value_2 = random.randint(1, 6)
+        def cpu_dice_value():  # find*
+            encrypted_msg = self.server.recv(1024)
+            msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8").split(":")
+            # print(msg)
+
+            value_1 = int(msg[1])
+            value_2 = int(msg[2])
+            # value_1 = random.randint(1, 6)
+            # value_2 = random.randint(1, 6)
             # pg.mixer.Sound.play(move_sound)
 
             dice1_cpu.my_dice = pg.image.load(cpu_dice_list[value_1 - 1])
@@ -94,8 +115,8 @@ class Player:
             for i in w:
                 i[1].image = pg.image.load("img/white_highlight.png")
 
-            white_light_pieces = L
-            # white_light_pieces.append([i, light_piece])
+            # white_light_pieces = L
+            # # white_light_pieces.append([i, light_piece])
 
         def light_black_keys(stack_list):
             light_piece = None
@@ -527,7 +548,11 @@ class Player:
             # print(white_light_pieces)
             consideration = None
 
-            if self.turn == "you":
+            # if self.turn == "you":
+            #     consideration = white_light_pieces
+            # else:
+            #     consideration = black_light_pieces
+            if self.color == "white":
                 consideration = white_light_pieces
             else:
                 consideration = black_light_pieces
@@ -545,13 +570,9 @@ class Player:
             piece_color = current_piece.id
             # msg = f"Moving {piece_color} piece from: {FROM.location} to: {to.location}"
             msg = f"MOVE:{piece_color}:{FROM.location}:{to.location}"
-            send_message(self.peer2, msg)
+            self.peer2.send(msg.encode("utf-8"))
             print(msg)
 
-            # then push in desired stack
-
-        # move()
-        # move()
         empty = []
         white_wins = pg.image.load("img/white_wins.png")
         black_wins = pg.image.load("img/black_wins.png")
@@ -675,6 +696,7 @@ class Player:
                             msg = msg.split(":")
                             if msg[0] == "MOVE":
                                 if msg[1] == self.player.opponent_color:
+                                    print(msg)
                                     move2(int(msg[2]), int(msg[3]))
                             elif msg[0] == "CHAT":
                                 self.display_message(f"Opponent: {msg[1]}")
@@ -686,28 +708,22 @@ class Player:
             app = MessageApp(root, conn, self)
             root.mainloop()
 
-        # def receive_message(conn):
-        #     while True:
-        #         msg = conn.recv(1024).decode("utf-8")
-        #         if not msg:
-        #             break
-        #         else:
-        #             msg = msg.split(":")
-        #             if msg[0] == "MOVE":
-        #                 if msg[1] == self.opponent_color:
-        #                     move2(int(msg[2]), int(msg[3]))
-        #             elif msg[0] == "CHAT":
-        #                 print(f"CHAT: {msg[1]}")
-
         def send_message(conn, msg):
-            conn.send(msg.encode("utf-8"))
+            encrypted_msg = self.cipher_suite.encrypt(msg.encode("utf-8"))
+            self.server.send(encrypted_msg)
 
         def move2(from_arg, to_arg):
-            # pg.mixer.Sound.play(move_sound)
-            # pg.mixer.Sound.play(move_sound)
-
             fromm = all_stack_dict[from_arg]
             to = all_stack_dict[to_arg]
+
+            if len(all_stack_dict[to_arg].elements) == 1 and (
+                all_stack_dict[to_arg].elements[0].id == self.color
+            ):
+                print(f"moving {all_stack_dict[to_arg].elements[0].id} to middle")
+                move(
+                    all_stack_dict[to_arg],
+                    my_middle_stack,
+                )
 
             deleted_piece = fromm.remove_piece()
             temp_to_move = deleted_piece
@@ -730,12 +746,6 @@ class Player:
                 self.cpu_number_of_peice_to_move -= 1
             else:
                 self.you_number_of_peice_to_move -= 1
-
-        # threading.Thread(
-        #     target=receive_message,
-        #     args=(self.peer2,),
-        #     daemon=True,
-        # ).start()
 
         threading.Thread(
             target=start_client,
@@ -1299,6 +1309,7 @@ class Player:
 
                             if click[0] == 1:
                                 self.you_turn_msg = False
+                                send_message(self.server, "DICE")
                                 dice_value()
                         else:
                             screen.blit(inactive_dice_button, (840, 440))
@@ -1433,7 +1444,10 @@ class Player:
 
                             if click[0] == 1:
                                 self.cpu_turn_msg = False
-                                cpu_dice_value()
+
+                                send_message(self.server, "DICE")
+                                cpu_dice_value()  # find*
+
                         else:
                             screen.blit(inactive_player2_dice, (3, 420))
 
@@ -1574,8 +1588,8 @@ class Player:
 
             if winner_declared == True:
                 # if winning_sound == "on":
-                    # pg.mixer.Sound.play(winning_sound)
-                    # winner_sound = "off"
+                # pg.mixer.Sound.play(winning_sound)
+                # winner_sound = "off"
 
                 if 250 <= mouse[0] <= 650 and 484 <= mouse[1] <= 550 and click[0] == 1:
                     pass

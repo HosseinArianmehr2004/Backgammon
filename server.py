@@ -41,7 +41,7 @@ class Server:
                     value_2 = random.randint(1, 6)
                     msg = f"DICE:{value_1}:{value_2}"
                     # print(msg)
-                    conn.send(msg.encode("utf-8"))
+                    conn.send(self.cipher_suite.encrypt(msg.encode("utf-8")))
 
                 else:
                     print(f"Received from {addr}: {msg}")
