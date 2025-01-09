@@ -3,13 +3,13 @@ import threading
 import random
 import os
 import tkinter as tk
-from cryptography.fernet import Fernet
+
 
 class Player:
-    def __init__(self, p1, p2, color, server):
+    def __init__(self, p1, p2, color, router_conn):
         self.peer1 = p1
         self.peer2 = p2
-        self.server = server
+        self.router_conn = router_conn
 
         self.you_number_of_peice_to_move = 2
         self.cpu_number_of_peice_to_move = 2
@@ -24,9 +24,6 @@ class Player:
 
         self.you_turn_msg = True
         self.cpu_turn_msg = False
-
-        # For cryptography
-        self.cipher_suite = None
 
     def main(self):
         os.environ["SDL_VIDEO_WINDOW_POS"] = "%d,%d" % (150, 30)
@@ -45,10 +42,6 @@ class Player:
         red = (225, 0, 0)
         yellow = (225, 225, 0)
         black = (0, 0, 0)
-
-        # Receive key from server
-        self.key = self.server_conn.recv(1024)
-        self.cipher_suite = Fernet(self.key)
 
         # for positioning of pieces the key
         def position(x, y):
@@ -69,9 +62,7 @@ class Player:
 
         # to roll and save the value of dice
         def dice_value():
-            encrypted_msg = self.server.recv(1024)
-            msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8").split(":")
-
+            msg = self.router_conn.recv(1024).decode("utf-8").split(":")
             # print(msg)
 
             value_1 = int(msg[1])
@@ -84,8 +75,7 @@ class Player:
             write_in_file("{} {}".format(value_1, value_2), "txt/dice_saving.txt")
 
         def cpu_dice_value():  # find*
-            encrypted_msg = self.server.recv(1024)
-            msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8").split(":")
+            msg = self.router_conn.recv(1024).decode("utf-8").split(":")
             # print(msg)
 
             value_1 = int(msg[1])
@@ -570,7 +560,7 @@ class Player:
             piece_color = current_piece.id
             # msg = f"Moving {piece_color} piece from: {FROM.location} to: {to.location}"
             msg = f"MOVE:{piece_color}:{FROM.location}:{to.location}"
-            self.peer2.send(msg.encode("utf-8"))
+            send_message(self.peer2, msg)
             print(msg)
 
         empty = []
@@ -709,8 +699,7 @@ class Player:
             root.mainloop()
 
         def send_message(conn, msg):
-            encrypted_msg = self.cipher_suite.encrypt(msg.encode("utf-8"))
-            self.server.send(encrypted_msg)
+            conn.send(msg.encode("utf-8"))
 
         def move2(from_arg, to_arg):
             fromm = all_stack_dict[from_arg]
@@ -1309,7 +1298,7 @@ class Player:
 
                             if click[0] == 1:
                                 self.you_turn_msg = False
-                                send_message(self.server, "DICE")
+                                send_message(self.router_conn, "DICE")
                                 dice_value()
                         else:
                             screen.blit(inactive_dice_button, (840, 440))
@@ -1445,7 +1434,7 @@ class Player:
                             if click[0] == 1:
                                 self.cpu_turn_msg = False
 
-                                send_message(self.server, "DICE")
+                                send_message(self.router_conn, "DICE")
                                 cpu_dice_value()  # find*
 
                         else:

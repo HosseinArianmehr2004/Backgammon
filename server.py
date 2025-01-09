@@ -1,7 +1,8 @@
-import random
 import socket
+import random
 import threading
-from cryptography.fernet import Fernet
+
+# from cryptography.fernet import Fernet
 
 
 class Server:
@@ -10,54 +11,43 @@ class Server:
         self.conn = None
         self.clients = set()
 
-        # For cryptography
-        self.key = Fernet.generate_key()
-        self.cipher_suite = Fernet(self.key)
-
     def receive_message(self, conn, addr):
         while True:
-            encrypted_msg = conn.recv(1024)
-            if not encrypted_msg:
-                break
+            message_received = conn.recv(1024).decode("utf-8").split("@")
+            print(f"message_received : {message_received}\n")
+            msg = message_received[0]
+            client_address = message_received[1]
 
-            try:
-                msg = self.cipher_suite.decrypt(encrypted_msg).decode("utf-8")
-                msg = msg.split("-")
+            msg = msg.split(":")
 
-                if msg[0] == "ADD":  # add a new online client address to self.clients
-                    online_client_address = msg[1]
-                    self.clients.add(online_client_address)
+            if msg[0] == "ADD":  # add a new online client address to self.clients
+                online_client_address = msg[1]
+                self.clients.add(online_client_address)
 
-                elif msg[0] == "REMOVE":  # remove address(msg[1]) from self.clients
-                    address = msg[1]
-                    self.clients.remove(address)
+            elif msg[0] == "REMOVE":  # remove address(msg[1]) from self.clients
+                address = msg[1]
+                # self.clients.remove(address)
 
-                elif msg[0] == "GET_CLIENTS":
-                    addresses = "\n".join([str(x) for x in self.clients])
-                    conn.send(self.cipher_suite.encrypt(addresses.encode("utf-8")))
+            elif msg[0] == "GET_CLIENTS":
+                online_clients = "\n".join([str(x) for x in self.clients])
+                msg_to_send = f"{online_clients}@{client_address}"
+                conn.send(msg_to_send.encode("utf-8"))
 
-                elif msg[0] == "DICE":
-                    value_1 = random.randint(1, 6)
-                    value_2 = random.randint(1, 6)
-                    msg = f"DICE:{value_1}:{value_2}"
-                    # print(msg)
-                    conn.send(self.cipher_suite.encrypt(msg.encode("utf-8")))
+            elif msg[0] == "DICE":
+                value_1 = random.randint(1, 6)
+                value_2 = random.randint(1, 6)
+                msg_to_send = f"DICE:{value_1}:{value_2}@{client_address}"
+                conn.send(msg_to_send.encode("utf-8"))
 
-                else:
-                    print(f"Received from {addr}: {msg}")
-
-            except Exception as e:
-                print(f"Error decrypting message: {e}")
-
-        conn.close()
+            else:
+                print(f"[{msg}] is not a command !\n")
 
     def send_message(self, conn):
         while True:
             msg = input("Enter message (or 'exit' to quit): ")
             if msg.lower() == "exit":
                 break
-            encrypted_msg = self.cipher_suite.encrypt(msg.encode("utf-8"))
-            conn.send(encrypted_msg)
+            conn.send(msg.encode("utf-8"))
 
         conn.close()
 
@@ -66,17 +56,15 @@ class Server:
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.bind(self.address)
         self.conn.listen(1)
-        print(f"Listening on address {self.address}...")
+        print(f"Listening on address {self.address} ...")
 
         while True:
-            client_conn, addr = self.conn.accept()
+            router_conn, addr = self.conn.accept()
             print(f"Connection established with {addr}")
-
-            # Send key to client
-            client_conn.send(self.key)
+            # self.clients.add(addr)
 
             threading.Thread(
-                target=self.receive_message, args=(client_conn, addr)
+                target=self.receive_message, args=(router_conn, addr)
             ).start()
             # threading.Thread(target=self.send_message, args=(client_conn,)).start()
 
@@ -84,5 +72,5 @@ class Server:
 
 
 if __name__ == "__main__":
-    server = Server(("127.0.0.1", 9090))
+    server = Server(("127.0.0.1", 9999))
     server.start()
