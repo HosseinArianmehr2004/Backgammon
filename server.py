@@ -1,5 +1,7 @@
 import socket
 import random
+import pyshark
+import asyncio
 import threading
 
 # from cryptography.fernet import Fernet
@@ -51,12 +53,45 @@ class Server:
 
         conn.close()
 
+    def start_packet_capture(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        interface = r"\Device\NPF_Loopback"  # Use to loopback interface
+
+        try:
+            capture = pyshark.LiveCapture(
+                interface=interface, display_filter="tcp.port == 9999"
+            )
+            print(f"\nStart recording network traffic !\n")
+
+            for packet in capture.sniff_continuously():
+                if "TCP" in packet and hasattr(packet.tcp, "payload"):
+                    # Remove header from packet content
+                    payload = packet.tcp.payload
+
+                    # Convert hexadecimal content to string
+                    hex_data_cleaned = payload.replace(":", "")
+                    byte_data = bytes.fromhex(hex_data_cleaned)
+                    string_data = byte_data.decode("utf-8", errors="ignore")
+
+                    # Print packet content
+                    print(f"\nPacket content : {string_data}")
+                    print(f"Source Port: {packet.tcp.srcport}")
+                    print(f"Destination Port: {packet.tcp.dstport}\n")
+
+        except Exception as e:
+            print(f"Traffic recording error: {e}")
+
     def start(self):
         """Function to start the listener socket."""
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.bind(self.address)
         self.conn.listen(1)
         print(f"Listening on address {self.address} ...")
+
+        # Start packet capture in a separate thread
+        threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             router_conn, addr = self.conn.accept()

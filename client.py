@@ -1,4 +1,6 @@
 import socket
+import pyshark
+import asyncio
 import threading
 from Backgammon_Game import Player
 
@@ -36,9 +38,41 @@ class Client:
     def send_message(self, conn, msg):
         conn.send(msg.encode("utf-8"))
 
+    def start_packet_capture(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        interface = r"\Device\NPF_Loopback"  # Use to loopback interface
+
+        try:
+            capture = pyshark.LiveCapture(
+                interface=interface, display_filter="tcp.port == 7777"
+            )
+
+            for packet in capture.sniff_continuously():
+                if "TCP" in packet and hasattr(packet.tcp, "payload"):
+                    # Remove header from packet content
+                    payload = packet.tcp.payload
+
+                    # Convert hexadecimal content to string
+                    hex_data_cleaned = payload.replace(":", "")
+                    byte_data = bytes.fromhex(hex_data_cleaned)
+                    string_data = byte_data.decode("utf-8", errors="ignore")
+
+                    # Print packet content
+                    print(f"\nPacket content : {string_data}")
+                    print(f"Source Port: {packet.tcp.srcport}")
+                    print(f"Destination Port: {packet.tcp.dstport}\n")
+
+        except Exception as e:
+            print(f"Traffic recording error: {e}")
+
     def start(self):
         self.router_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.router_conn.connect(self.router_address)
+
+        # Start packet capture in a separate thread
+        threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             for x in self.options:
