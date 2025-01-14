@@ -11,41 +11,34 @@ class Router:
         self.id = id
         self.address = address
         self.conn = None
-        self.port = address[1]
-        self.neighbors = neighbors_addresses
 
         self.all_keys = None
         self.key = None
 
+        self.neighbors = neighbors_addresses
         self.neighbors_conns = {}
         for ngh_addr in neighbors_addresses:
             self.neighbors_conns[ngh_addr] = None
 
         self.clients = {}
+        self.routers_ports = []
 
     def send_to_server(self, conn, addr):
         while True:
             msg = conn.recv(1024)
-            # print(msg)
-
             cipher = Fernet(self.key)
-            # msg = cipher.decrypt(msg)
 
             if self.id == "R1":
-                print(f"type : {type(msg)}")
                 msg = cipher.decrypt(msg).decode("utf-8")
                 msg = f"{msg}@{addr}".encode("utf-8")
             else:
                 msg, addr = msg.decode("utf-8").split("@")
                 msg = msg.encode("utf-8")
-                print(f"type : {type(msg)}")
                 msg = cipher.decrypt(msg).decode("utf-8")
                 msg = f"{msg}@{addr}".encode("utf-8")
 
             print(f"msg to send: {msg}")
             self.send_to_neighbors(msg)
-
-            # self.server_conn.send(msg.encode("utf-8"))
 
     # actualy receive from server
     def receive_from_a_neighbor(self, ngh_conn, ngh_addr):
@@ -78,12 +71,8 @@ class Router:
                         client_conn.send(msg.encode("utf-8"))
 
     def send_to_neighbors(self, msg):
-        # cipher = Fernet(self.key)
-        # decrypted_data = cipher.decrypt(msg)
-
         for ngh_addr in self.neighbors:
             conn = self.neighbors_conns[ngh_addr]
-            # conn.send(msg.encode("utf-8"))
             conn.send(msg)
 
     def send_to_client(self, msg):
@@ -112,12 +101,9 @@ class Router:
         interface = r"\Device\NPF_Loopback"  # Use to loopback interface
 
         try:
-            display_filter = "tcp.port == 7501 or tcp.port == 7502 or tcp.port == 7503 or tcp.port == 7504"
+            display_filter = f"tcp.port == {self.routers_ports[0]} or tcp.port == {self.routers_ports[1]} or tcp.port == {self.routers_ports[2]} or tcp.port == {self.routers_ports[3]}"
             capture = pyshark.LiveCapture(
                 interface=interface, display_filter=display_filter
-            )
-            print(
-                f"\n in router with ID [{self.id}] start recording network traffic !\n"
             )
 
             # Open file to write
@@ -132,10 +118,10 @@ class Router:
                         byte_data = bytes.fromhex(hex_data_cleaned)
                         string_data = byte_data.decode("utf-8", errors="ignore")
 
-                        # Write in terminal
-                        print(f"\nPacket content : {string_data}")
-                        print(f"Source Port: {packet.tcp.srcport}")
-                        print(f"Destination Port: {packet.tcp.dstport}\n")
+                        # # Write in terminal
+                        # print(f"\nPacket content : {string_data}")
+                        # print(f"Source Port: {packet.tcp.srcport}")
+                        # print(f"Destination Port: {packet.tcp.dstport}\n")
 
                         # Write in file
                         log_file.write(f"\n*****Router {self.id}*****\n")
@@ -157,7 +143,7 @@ class Router:
         print(f"Listening on address {self.address} ...")
 
         # Start packet capture in a separate thread
-        # threading.Thread(target=self.start_packet_capture, daemon=True).start()
+        threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             client_conn, client_addr = self.conn.accept()
@@ -172,13 +158,11 @@ class Router:
                 target=self.send_to_server, args=(client_conn, client_addr)
             ).start()
 
-        self.conn.close()
-
 
 if __name__ == "__main__":
-    id = f"R{input("enter id: ")}"
+    id = f"R{input("enter router id: ")}"
 
-    base = 8600
+    base = 8000
 
     R1_port = base + 1
     R2_port = base + 2
@@ -207,4 +191,5 @@ if __name__ == "__main__":
         neighbors = R4_neighbors
 
     router = Router(id, ("127.0.0.1", port), neighbors)
+    router.routers_ports = [R1_port, R2_port, R3_port, R4_port]
     router.start()

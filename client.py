@@ -3,8 +3,8 @@ import pickle
 import pyshark
 import asyncio
 import threading
-from cryptography.fernet import Fernet
 from Backgammon_Game import Player
+from cryptography.fernet import Fernet
 
 
 class Client:
@@ -32,7 +32,6 @@ class Client:
         player = Player(
             self.game_conn, self.game_peer_conn, color, self.router_conn, self.keys
         )
-        # player = Player(self.game_conn, self.game_peer_conn, color)
         threading.Thread(
             target=player.main,
             args=(),
@@ -58,7 +57,8 @@ class Client:
 
         try:
             capture = pyshark.LiveCapture(
-                interface=interface, display_filter="tcp.port == 12345"
+                interface=interface,
+                display_filter=f"tcp.port == {self.game_address[1]}",
             )
 
             # Open file to write
@@ -73,10 +73,10 @@ class Client:
                         byte_data = bytes.fromhex(hex_data_cleaned)
                         string_data = byte_data.decode("utf-8", errors="ignore")
 
-                        # Write in terminal
-                        print(f"\nPacket content : {string_data}")
-                        print(f"Source Port: {packet.tcp.srcport}")
-                        print(f"Destination Port: {packet.tcp.dstport}\n")
+                        # # Write in terminal
+                        # print(f"\nPacket content : {string_data}")
+                        # print(f"Source Port: {packet.tcp.srcport}")
+                        # print(f"Destination Port: {packet.tcp.dstport}\n")
 
                         # Write in file
                         log_file.write(f"\n*****Client*****\n")
@@ -96,21 +96,20 @@ class Client:
         self.keys = pickle.loads(message_received)
 
         # Start packet capture in a separate thread
-        # threading.Thread(target=self.start_packet_capture, daemon=True).start()
+        threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             for x in self.options:
                 print(x)
 
-            choice = input("Choose an option : ")
+            choice = input("Choose an option :\n")
 
             if choice == "1":
                 msg = input("Enter message to send to Server : ")
                 self.send_message(self.router_conn, msg)
 
             elif choice == "2":
-                # port = int(input("Enter port to listen for peer connections: "))
-                port = 12345
+                port = int(input("Enter port to listen for peer connections: "))
 
                 self.game_address = "127.0.0.1", port
                 self.game_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -130,14 +129,12 @@ class Client:
             elif choice == "3":
                 # Request the list of online clients from the server
                 self.send_message(self.router_conn, "GET_CLIENTS")
-
                 online_clients = self.router_conn.recv(1024).decode("utf-8")
 
                 print("Online clients:")
                 print(online_clients)
 
-                # self.peer_address = input("host: "), int(input("port: "))
-                self.game_peer_address = "127.0.0.1", 12345
+                self.game_peer_address = "127.0.0.1", int(input("port: "))
 
                 self.game_peer_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.game_peer_conn.connect(self.game_peer_address)
@@ -149,7 +146,7 @@ class Client:
                 print("Starting the game ...")
                 self.run_game("black")
 
-            elif choice == "4":  # Updated exit option
+            elif choice == "4":
                 print("Exiting ...")
 
                 if self.game_conn:
@@ -165,5 +162,5 @@ class Client:
 
 
 if __name__ == "__main__":
-    client = Client(("127.0.0.1", 8601))
+    client = Client(("127.0.0.1", 8001))
     client.start()

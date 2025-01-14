@@ -20,7 +20,6 @@ class Server:
             print(message_received)
             msg = message_received[0]
             client_address = message_received[1]
-            # msg = self.decrypt_data(message_received[0].encode("utf-8")).decode("utf-8")
             msg = msg.split(":")
 
             if msg[0] == "ADD":  # add a new online client address to self.clients
@@ -29,7 +28,7 @@ class Server:
 
             elif msg[0] == "REMOVE":  # remove address(msg[1]) from self.clients
                 address = msg[1]
-                # self.clients.remove(address)
+                self.clients.remove(address)
 
             elif msg[0] == "GET_CLIENTS":
                 online_clients = "\n".join([str(x) for x in self.clients])
@@ -44,21 +43,6 @@ class Server:
 
             else:
                 print(f"{msg} is not a command !\n")
-
-    def send_message(self, conn):
-        while True:
-            msg = input("Enter message (or 'exit' to quit): ")
-            if msg.lower() == "exit":
-                break
-            conn.send(msg.encode("utf-8"))
-
-        conn.close()
-
-    def decrypt_data(self, decrypted_data):
-        for key in reversed(self.keys):
-            cipher = Fernet(key)
-            decrypted_data = cipher.decrypt(decrypted_data)
-        return decrypted_data
 
     def generate_keys(self, num_keys):
         keys = []
@@ -75,9 +59,8 @@ class Server:
 
         try:
             capture = pyshark.LiveCapture(
-                interface=interface, display_filter="tcp.port == 9988"
+                interface=interface, display_filter=f"tcp.port == {self.address[1]}"
             )
-            print(f"\nin server start recording network traffic !\n")
 
             # Open file to write
             with open("wireshark.log", "a") as log_file:
@@ -91,10 +74,10 @@ class Server:
                         byte_data = bytes.fromhex(hex_data_cleaned)
                         string_data = byte_data.decode("utf-8", errors="ignore")
 
-                        # Write in terminal
-                        print(f"\nPacket content : {string_data}")
-                        print(f"Source Port: {packet.tcp.srcport}")
-                        print(f"Destination Port: {packet.tcp.dstport}\n")
+                        # # Write in terminal
+                        # print(f"\nPacket content : {string_data}")
+                        # print(f"Source Port: {packet.tcp.srcport}")
+                        # print(f"Destination Port: {packet.tcp.dstport}\n")
 
                         # Write in file
                         log_file.write(f"\n*****Server*****\n")
@@ -107,30 +90,25 @@ class Server:
             print(f"Traffic recording error: {e}")
 
     def start(self):
-        """Function to start the listener socket."""
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn.bind(self.address)
         self.conn.listen(1)
         print(f"Listening on address {self.address} ...")
 
         # Start packet capture in a separate thread
-        # threading.Thread(target=self.start_packet_capture, daemon=True).start()
+        threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             router_conn, addr = self.conn.accept()
             print(f"Connection established with {addr}")
-            for key in self.keys:
-                print(key)
+            # for key in self.keys:
+            #     print(key)
             keys = pickle.dumps(self.keys)
             router_conn.send(keys)
-            # self.clients.add(addr)
 
             threading.Thread(
                 target=self.receive_message, args=(router_conn, addr)
             ).start()
-            # threading.Thread(target=self.send_message, args=(client_conn,)).start()
-
-        self.conn.close()
 
 
 if __name__ == "__main__":
