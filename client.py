@@ -48,7 +48,7 @@ class Client:
 
         try:
             capture = pyshark.LiveCapture(
-                interface=interface, display_filter="tcp.port == 7777"
+                interface=interface, display_filter="tcp.port == 12345"
             )
 
             for packet in capture.sniff_continuously():
