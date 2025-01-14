@@ -61,7 +61,7 @@ class Server:
 
         try:
             capture = pyshark.LiveCapture(
-                interface=interface, display_filter="tcp.port == 9999"
+                interface=interface, display_filter="tcp.port == 9988"
             )
             print(f"\nStart recording network traffic !\n")
 

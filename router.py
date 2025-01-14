@@ -43,7 +43,7 @@ class Router:
 
         try:
             capture = pyshark.LiveCapture(
-                interface=interface, display_filter="tcp.port == 8888"
+                interface=interface, display_filter="tcp.port == 7501"
             )
             print(f"\nStart recording network traffic !\n")
 
@@ -95,5 +95,5 @@ class Router:
 
 
 if __name__ == "__main__":
-    router = Router(("127.0.0.1", 8888), ("127.0.0.1", 9999))
+    router = Router(("127.0.0.1", 7501), ("127.0.0.1", 9988))
     router.start()

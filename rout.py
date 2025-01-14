@@ -1,4 +1,6 @@
 import socket
+import pyshark
+import asyncio
 import threading
 
 # from cryptography.fernet import Fernet
@@ -9,14 +11,14 @@ class Router:
         self.id = id
         self.address = address
         self.conn = None
-
+        self.port = address[1]
         self.neighbors = neighbors_addresses
 
         self.neighbors_conns = {}
         for ngh_addr in neighbors_addresses:
             self.neighbors_conns[ngh_addr] = None
 
-        self.clients = {}  # this is just for router 1
+        self.clients = {}
 
     def send_to_server(self, conn, addr):
         while True:
@@ -70,6 +72,44 @@ class Router:
                 args=(self.neighbors_conns[addr], addr),
             ).start()
 
+    def start_packet_capture(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        interface = r"\Device\NPF_Loopback"  # Use to loopback interface
+
+        try:
+            display_filter = "tcp.port == 7501 or tcp.port == 7502 or tcp.port == 7503 or tcp.port == 7504"
+            capture = pyshark.LiveCapture(
+                interface=interface, display_filter=display_filter
+            )
+            print(
+                f"\n in router with ID [{self.id}] start recording network traffic !\n"
+            )
+
+            for packet in capture.sniff_continuously():
+                if "TCP" in packet and hasattr(packet.tcp, "payload"):
+                    # Checking whether the packet belongs to this router or not
+                    if (
+                        int(packet.tcp.dstport) == self.port
+                        or int(packet.tcp.srcport) == self.port
+                    ):
+                        # Remove header from packet content
+                        payload = packet.tcp.payload
+
+                        # Convert hexadecimal content to string
+                        hex_data_cleaned = payload.replace(":", "")
+                        byte_data = bytes.fromhex(hex_data_cleaned)
+                        string_data = byte_data.decode("utf-8", errors="ignore")
+
+                        # Print packet content with router ID
+                        print(f"\nPacket content in [{self.id}]: {string_data}")
+                        print(f"Source Port: {packet.tcp.srcport}")
+                        print(f"Destination Port: {packet.tcp.dstport}\n")
+
+        except Exception as e:
+            print(f"[{self.id}] Traffic recording error: {e}")
+
     def start(self):
         self.connect_to_neighbors()
 
@@ -78,6 +118,9 @@ class Router:
         self.conn.bind(self.address)
         self.conn.listen(1)
         print(f"Listening on address {self.address} ...")
+
+        # Start packet capture in a separate thread
+        threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             client_conn, client_addr = self.conn.accept()
