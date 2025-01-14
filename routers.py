@@ -57,7 +57,7 @@ class Router:
                 elif self.id == "R4":
                     self.key = keys[3]
 
-                print(self.key)
+                print(f"The router [{self.id}] key is: [{self.key}]")
 
             else:
                 msg = msg.decode("utf-8")
@@ -105,7 +105,7 @@ class Router:
             capture = pyshark.LiveCapture(
                 interface=interface, display_filter=display_filter
             )
-
+            
             # Open file to write
             with open("wireshark.log", "a") as log_file:
                 for packet in capture.sniff_continuously():
@@ -125,7 +125,7 @@ class Router:
 
                         # Write in file
                         log_file.write(f"\n*****Router {self.id}*****\n")
-                        log_file.write(f"\nPacket content : {string_data}\n")
+                        log_file.write(f"Packet content : {string_data}\n")
                         log_file.write(f"Source Port: {packet.tcp.srcport}\n")
                         log_file.write(f"Destination Port: {packet.tcp.dstport}\n")
                         log_file.flush()

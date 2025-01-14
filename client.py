@@ -58,7 +58,7 @@ class Client:
         try:
             capture = pyshark.LiveCapture(
                 interface=interface,
-                display_filter=f"tcp.port == {self.game_address[1]}",
+                display_filter="tcp.port == 12345",
             )
 
             # Open file to write
