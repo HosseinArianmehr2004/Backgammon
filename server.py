@@ -65,22 +65,31 @@ class Server:
             capture = pyshark.LiveCapture(
                 interface=interface, display_filter="tcp.port == 9988"
             )
-            print(f"\nStart recording network traffic !\n")
+            print(f"\nin server start recording network traffic !\n")
 
-            for packet in capture.sniff_continuously():
-                if "TCP" in packet and hasattr(packet.tcp, "payload"):
-                    # Remove header from packet content
-                    payload = packet.tcp.payload
+            # Open file to write
+            with open("wireshark.log", "a") as log_file:
+                for packet in capture.sniff_continuously():
+                    if "TCP" in packet and hasattr(packet.tcp, "payload"):
+                        # Remove header from packet content
+                        payload = packet.tcp.payload
 
-                    # Convert hexadecimal content to string
-                    hex_data_cleaned = payload.replace(":", "")
-                    byte_data = bytes.fromhex(hex_data_cleaned)
-                    string_data = byte_data.decode("utf-8", errors="ignore")
+                        # Convert hexadecimal content to string
+                        hex_data_cleaned = payload.replace(":", "")
+                        byte_data = bytes.fromhex(hex_data_cleaned)
+                        string_data = byte_data.decode("utf-8", errors="ignore")
 
-                    # Print packet content
-                    print(f"\nPacket content : {string_data}")
-                    print(f"Source Port: {packet.tcp.srcport}")
-                    print(f"Destination Port: {packet.tcp.dstport}\n")
+                        # Write in terminal
+                        print(f"\nPacket content : {string_data}")
+                        print(f"Source Port: {packet.tcp.srcport}")
+                        print(f"Destination Port: {packet.tcp.dstport}\n")
+
+                        # Write in file
+                        log_file.write(f"\n*****Server*****\n")
+                        log_file.write(f"Packet content : {string_data}\n")
+                        log_file.write(f"Source Port: {packet.tcp.srcport}\n")
+                        log_file.write(f"Destination Port: {packet.tcp.dstport}\n")
+                        log_file.flush()
 
         except Exception as e:
             print(f"Traffic recording error: {e}")

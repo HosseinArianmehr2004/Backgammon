@@ -88,13 +88,10 @@ class Router:
                 f"\n in router with ID [{self.id}] start recording network traffic !\n"
             )
 
-            for packet in capture.sniff_continuously():
-                if "TCP" in packet and hasattr(packet.tcp, "payload"):
-                    # Checking whether the packet belongs to this router or not
-                    if (
-                        int(packet.tcp.dstport) == self.port
-                        or int(packet.tcp.srcport) == self.port
-                    ):
+            # Open file to write
+            with open("wireshark.log", "a") as log_file:
+                for packet in capture.sniff_continuously():
+                    if "TCP" in packet and hasattr(packet.tcp, "payload"):
                         # Remove header from packet content
                         payload = packet.tcp.payload
 
@@ -103,10 +100,17 @@ class Router:
                         byte_data = bytes.fromhex(hex_data_cleaned)
                         string_data = byte_data.decode("utf-8", errors="ignore")
 
-                        # Print packet content with router ID
-                        print(f"\nPacket content in [{self.id}]: {string_data}")
+                        # Write in terminal
+                        print(f"\nPacket content : {string_data}")
                         print(f"Source Port: {packet.tcp.srcport}")
                         print(f"Destination Port: {packet.tcp.dstport}\n")
+
+                        # Write in file
+                        log_file.write(f"\n*****Router {self.id}*****\n")
+                        log_file.write(f"\nPacket content : {string_data}\n")
+                        log_file.write(f"Source Port: {packet.tcp.srcport}\n")
+                        log_file.write(f"Destination Port: {packet.tcp.dstport}\n")
+                        log_file.flush()
 
         except Exception as e:
             print(f"[{self.id}] Traffic recording error: {e}")
