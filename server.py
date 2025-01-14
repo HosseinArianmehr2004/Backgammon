@@ -3,6 +3,8 @@ import random
 import pyshark
 import asyncio
 import threading
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 
 # from cryptography.fernet import Fernet
 

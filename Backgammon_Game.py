@@ -61,32 +61,42 @@ class Player:
             return (X, Y)
 
         # to roll and save the value of dice
-        def dice_value():
+        def get_dice_value_from_server():
             msg = self.router_conn.recv(1024).decode("utf-8").split(":")
-            # print(msg)
 
             value_1 = int(msg[1])
             value_2 = int(msg[2])
-            # value_1 = random.randint(1, 6)
-            # value_2 = random.randint(1, 6)
-            # pg.mixer.Sound.play(move_sound)
+
             dice1.my_dice = pg.image.load(you_dice[value_1 - 1])
             dice2.my_dice = pg.image.load(you_dice[value_2 - 1])
             write_in_file("{} {}".format(value_1, value_2), "txt/dice_saving.txt")
 
-        def cpu_dice_value():  # find*
+        def get_cpu_dice_value_from_server():
             msg = self.router_conn.recv(1024).decode("utf-8").split(":")
-            # print(msg)
 
             value_1 = int(msg[1])
             value_2 = int(msg[2])
-            # value_1 = random.randint(1, 6)
-            # value_2 = random.randint(1, 6)
-            # pg.mixer.Sound.play(move_sound)
 
             dice1_cpu.my_dice = pg.image.load(cpu_dice_list[value_1 - 1])
             dice2_cpu.my_dice = pg.image.load(cpu_dice_list[value_2 - 1])
             write_in_file("{} {}".format(value_1, value_2), "txt/cpu_dice_saving.txt")
+
+        # to roll and save the value of dice
+        def dice_value():
+            value_1 = random.randint(1, 6)
+            value_2 = random.randint(1, 6)
+            # pg.mixer.Sound.play(move_sound)
+            dice1.my_dice = pg.image.load(you_dice[value_1 - 1])
+            dice2.my_dice = pg.image.load(you_dice[value_2 - 1])
+            # write_in_file("{} {}".format(value_1, value_2), "txt/dice_saving.txt")
+
+        def cpu_dice_value():  # find*
+            value_1 = random.randint(1, 6)
+            value_2 = random.randint(1, 6)
+            # pg.mixer.Sound.play(move_sound)
+            dice1_cpu.my_dice = pg.image.load(cpu_dice_list[value_1 - 1])
+            dice2_cpu.my_dice = pg.image.load(cpu_dice_list[value_2 - 1])
+            # write_in_file("{} {}".format(value_1, value_2), "txt/cpu_dice_saving.txt")
 
         def write_in_file(content, file_name):
             file = open(file_name, "w")
@@ -967,6 +977,9 @@ class Player:
                             you_dice_rolled = True
                             light_trigerred = True
 
+                            send_message(self.router_conn, "DICE")
+                            get_dice_value_from_server()
+
                     # if (
                     #     event.type == pg.MOUSEBUTTONUP
                     #     and self.turn == "cpu"
@@ -1000,6 +1013,9 @@ class Player:
                             light_black_keys(black_light_pieces)
                             cpu_dice_rolled = True
                             black_light_trigerred = True
+
+                            send_message(self.router_conn, "DICE")
+                            get_cpu_dice_value_from_server()
 
                 # step 5 (movement of player's pieces
                 # print(len(white_legal_destination))
@@ -1298,7 +1314,6 @@ class Player:
 
                             if click[0] == 1:
                                 self.you_turn_msg = False
-                                send_message(self.router_conn, "DICE")
                                 dice_value()
                         else:
                             screen.blit(inactive_dice_button, (840, 440))
@@ -1433,9 +1448,7 @@ class Player:
 
                             if click[0] == 1:
                                 self.cpu_turn_msg = False
-
-                                send_message(self.router_conn, "DICE")
-                                cpu_dice_value()  # find*
+                                cpu_dice_value()
 
                         else:
                             screen.blit(inactive_player2_dice, (3, 420))
