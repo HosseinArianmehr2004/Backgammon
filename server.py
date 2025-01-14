@@ -1,12 +1,10 @@
 import socket
+import pickle
 import random
 import pyshark
 import asyncio
 import threading
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-
-# from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet
 
 
 class Server:
@@ -14,14 +12,15 @@ class Server:
         self.address = addr
         self.conn = None
         self.clients = set()
+        self.keys = self.generate_keys(4)
 
     def receive_message(self, conn, addr):
         while True:
             message_received = conn.recv(1024).decode("utf-8").split("@")
-            print(f"message_received : {message_received}\n")
+            print(message_received)
             msg = message_received[0]
             client_address = message_received[1]
-
+            # msg = self.decrypt_data(message_received[0].encode("utf-8")).decode("utf-8")
             msg = msg.split(":")
 
             if msg[0] == "ADD":  # add a new online client address to self.clients
@@ -44,7 +43,7 @@ class Server:
                 conn.send(msg_to_send.encode("utf-8"))
 
             else:
-                print(f"[{msg}] is not a command !\n")
+                print(f"{msg} is not a command !\n")
 
     def send_message(self, conn):
         while True:
@@ -54,6 +53,19 @@ class Server:
             conn.send(msg.encode("utf-8"))
 
         conn.close()
+
+    def decrypt_data(self, decrypted_data):
+        for key in reversed(self.keys):
+            cipher = Fernet(key)
+            decrypted_data = cipher.decrypt(decrypted_data)
+        return decrypted_data
+
+    def generate_keys(self, num_keys):
+        keys = []
+        for _ in range(num_keys):
+            key = Fernet.generate_key()
+            keys.append(key)
+        return keys
 
     def start_packet_capture(self):
         loop = asyncio.new_event_loop()
@@ -102,11 +114,15 @@ class Server:
         print(f"Listening on address {self.address} ...")
 
         # Start packet capture in a separate thread
-        threading.Thread(target=self.start_packet_capture, daemon=True).start()
+        # threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             router_conn, addr = self.conn.accept()
             print(f"Connection established with {addr}")
+            for key in self.keys:
+                print(key)
+            keys = pickle.dumps(self.keys)
+            router_conn.send(keys)
             # self.clients.add(addr)
 
             threading.Thread(
@@ -118,5 +134,5 @@ class Server:
 
 
 if __name__ == "__main__":
-    server = Server(("127.0.0.1", 9988))
+    server = Server(("127.0.0.1", 9999))
     server.start()

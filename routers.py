@@ -1,10 +1,9 @@
 import socket
+import pickle
 import pyshark
 import asyncio
 import threading
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-# from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet
 
 
 class Router:
@@ -15,6 +14,9 @@ class Router:
         self.port = address[1]
         self.neighbors = neighbors_addresses
 
+        self.all_keys = None
+        self.key = None
+
         self.neighbors_conns = {}
         for ngh_addr in neighbors_addresses:
             self.neighbors_conns[ngh_addr] = None
@@ -23,14 +25,24 @@ class Router:
 
     def send_to_server(self, conn, addr):
         while True:
-            print(f"in (send_to_server) method with args = {addr}")
-            msg = conn.recv(1024).decode("utf-8")
+            msg = conn.recv(1024)
+            # print(msg)
+
+            cipher = Fernet(self.key)
+            # msg = cipher.decrypt(msg)
 
             if self.id == "R1":
-                msg = f"{msg}@{addr}"
+                print(f"type : {type(msg)}")
+                msg = cipher.decrypt(msg).decode("utf-8")
+                msg = f"{msg}@{addr}".encode("utf-8")
+            else:
+                msg, addr = msg.decode("utf-8").split("@")
+                msg = msg.encode("utf-8")
+                print(f"type : {type(msg)}")
+                msg = cipher.decrypt(msg).decode("utf-8")
+                msg = f"{msg}@{addr}".encode("utf-8")
 
             print(f"msg to send: {msg}")
-
             self.send_to_neighbors(msg)
 
             # self.server_conn.send(msg.encode("utf-8"))
@@ -38,21 +50,41 @@ class Router:
     # actualy receive from server
     def receive_from_a_neighbor(self, ngh_conn, ngh_addr):
         while True:
-            print(f"in (send_to_server) method with args = {ngh_addr}")
-            msg = ngh_conn.recv(1024).decode("utf-8")
-            print(f"msg received from {ngh_addr}: {msg}")
+            msg = ngh_conn.recv(1024)
+            if self.key == None:
+                keys = pickle.loads(msg)
+                self.all_keys = keys
 
-            if self.id == "R1":
-                self.send_to_client(msg)
+                if self.id == "R1":
+                    self.key = keys[2]
+                elif self.id == "R2":
+                    self.key = keys[1]
+                elif self.id == "R3":
+                    self.key = keys[0]
+                elif self.id == "R4":
+                    self.key = keys[3]
+
+                print(self.key)
+
             else:
-                for client in self.clients:
-                    client_conn = self.clients[client]
-                    client_conn.send(msg.encode("utf-8"))
+                msg = msg.decode("utf-8")
+                print(f"msg received from {ngh_addr}: {msg}")
+
+                if self.id == "R1":
+                    self.send_to_client(msg)
+                else:
+                    for client in self.clients:
+                        client_conn = self.clients[client]
+                        client_conn.send(msg.encode("utf-8"))
 
     def send_to_neighbors(self, msg):
+        # cipher = Fernet(self.key)
+        # decrypted_data = cipher.decrypt(msg)
+
         for ngh_addr in self.neighbors:
             conn = self.neighbors_conns[ngh_addr]
-            conn.send(msg.encode("utf-8"))
+            # conn.send(msg.encode("utf-8"))
+            conn.send(msg)
 
     def send_to_client(self, msg):
         msg = msg.split("@")
@@ -125,11 +157,14 @@ class Router:
         print(f"Listening on address {self.address} ...")
 
         # Start packet capture in a separate thread
-        threading.Thread(target=self.start_packet_capture, daemon=True).start()
+        # threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             client_conn, client_addr = self.conn.accept()
             print(f"Connection established with {client_addr}")
+
+            keys = pickle.dumps(self.all_keys)
+            client_conn.send(keys)
 
             self.clients[f"{client_addr}"] = client_conn
 
@@ -143,19 +178,20 @@ class Router:
 if __name__ == "__main__":
     id = f"R{input("enter id: ")}"
 
-    base = 7500
+    base = 8600
 
     R1_port = base + 1
     R2_port = base + 2
     R3_port = base + 3
     R4_port = base + 4
-    server_port = 9988
+    server_port = 9999
 
     # neighbor means server
-    R1_neighbors = [("127.0.0.1", R2_port), ("127.0.0.1", R3_port)]
-    R2_neighbors = [("127.0.0.1", R4_port)]
-    R3_neighbors = [("127.0.0.1", R4_port)]
-    R4_neighbors = [("127.0.0.1", server_port)]
+    # R1_neighbors = [("127.0.0.1", R2_port), ("127.0.0.1", R4_port)]
+    R1_neighbors = [("127.0.0.1", R2_port)]
+    R2_neighbors = [("127.0.0.1", R3_port)]
+    R3_neighbors = [("127.0.0.1", server_port)]
+    R4_neighbors = [("127.0.0.1", R3_port)]
 
     if id == "R1":
         port = R1_port

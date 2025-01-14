@@ -2,9 +2,7 @@ python router.py
 
 
 
-
-python rout.py
-
+python routers.py
 
 
 
@@ -12,14 +10,7 @@ python client.py
 
 
 
-
-python3 router.py
-
-
-
-
-python3 router_classes.py
-
+python3 routers.py
 
 
 

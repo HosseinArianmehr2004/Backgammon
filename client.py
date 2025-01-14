@@ -1,12 +1,10 @@
 import socket
+import pickle
 import pyshark
 import asyncio
 import threading
+from cryptography.fernet import Fernet
 from Backgammon_Game import Player
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
-
-# from cryptography.fernet import Fernet
 
 
 class Client:
@@ -19,6 +17,8 @@ class Client:
         self.game_peer_conn = None
         self.router_conn = None
 
+        self.keys = None
+
         self.options = [
             "\nOptions:",
             "1. Send message to server",
@@ -29,7 +29,9 @@ class Client:
 
     def run_game(self, color):
         # Run the game in a separate thread
-        player = Player(self.game_conn, self.game_peer_conn, color, self.router_conn)
+        player = Player(
+            self.game_conn, self.game_peer_conn, color, self.router_conn, self.keys
+        )
         # player = Player(self.game_conn, self.game_peer_conn, color)
         threading.Thread(
             target=player.main,
@@ -38,7 +40,15 @@ class Client:
         ).start()
 
     def send_message(self, conn, msg):
-        conn.send(msg.encode("utf-8"))
+        msg = self.encrypt_data(msg.encode("utf-8"))
+        conn.send(msg)
+
+    def encrypt_data(self, encrypted_data):
+        for i in range(3):
+            key = self.keys[i]
+            cipher = Fernet(key)
+            encrypted_data = cipher.encrypt(encrypted_data)
+        return encrypted_data
 
     def start_packet_capture(self):
         loop = asyncio.new_event_loop()
@@ -82,8 +92,11 @@ class Client:
         self.router_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.router_conn.connect(self.router_address)
 
+        message_received = self.router_conn.recv(1024)
+        self.keys = pickle.loads(message_received)
+
         # Start packet capture in a separate thread
-        threading.Thread(target=self.start_packet_capture, daemon=True).start()
+        # threading.Thread(target=self.start_packet_capture, daemon=True).start()
 
         while True:
             for x in self.options:
@@ -152,5 +165,5 @@ class Client:
 
 
 if __name__ == "__main__":
-    client = Client(("127.0.0.1", 7501))
+    client = Client(("127.0.0.1", 8601))
     client.start()

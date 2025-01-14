@@ -3,13 +3,16 @@ import threading
 import random
 import os
 import tkinter as tk
+from cryptography.fernet import Fernet
 
 
 class Player:
-    def __init__(self, p1, p2, color, router_conn):
+    def __init__(self, p1, p2, color, router_conn, keys):
         self.peer1 = p1
         self.peer2 = p2
         self.router_conn = router_conn
+
+        self.keys = keys
 
         self.you_number_of_peice_to_move = 2
         self.cpu_number_of_peice_to_move = 2
@@ -746,6 +749,17 @@ class Player:
             else:
                 self.you_number_of_peice_to_move -= 1
 
+        def send_message_to_server(conn, msg):
+            msg = encrypt_data(msg.encode("utf-8"))
+            conn.send(msg)
+
+        def encrypt_data(encrypted_data):
+            for i in range(3):
+                key = self.keys[i]
+                cipher = Fernet(key)
+                encrypted_data = cipher.encrypt(encrypted_data)
+            return encrypted_data
+
         threading.Thread(
             target=start_client,
             args=(self.peer2,),
@@ -977,7 +991,7 @@ class Player:
                             you_dice_rolled = True
                             light_trigerred = True
 
-                            send_message(self.router_conn, "DICE")
+                            send_message_to_server(self.router_conn, "DICE")
                             get_dice_value_from_server()
 
                     # if (
@@ -1014,7 +1028,7 @@ class Player:
                             cpu_dice_rolled = True
                             black_light_trigerred = True
 
-                            send_message(self.router_conn, "DICE")
+                            send_message_to_server(self.router_conn, "DICE")
                             get_cpu_dice_value_from_server()
 
                 # step 5 (movement of player's pieces
